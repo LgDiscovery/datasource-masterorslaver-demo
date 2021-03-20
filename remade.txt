@@ -1,0 +1,142 @@
+
+参考地址：https://juejin.cn/post/6844904006301515790
+手把手教你，如何在windows系统搭建mysql主从复制的环境
+背景
+最近在学习用Spring Aop来实现数据库读写分离的功能。 在编写代码之前，首先是要部署好mysql的环境，因为要实现读写分离，所以至少需要部署两个mysql实例，一主一从，并且主从实例之间能够自动同步，因为我的本机内存并不高，所以就打算在windows上直接搭建mysql的主从实例(不想开虚拟机)，但这个过程中却遇到了一些麻烦，虽然最后都解决了，但也花费了不少的时间。为了避免以后在同样的事情上浪费时间，同时也方便读者们能复制相同的场景，所以就写下这篇博客来记录一下搭建环境的过程。
+
+环境说明
+本机地址：127.0.0.1(localhost)
+
+mysql版本：mysql-5.7.28-winx64
+
+主库服务名：master，端口3307
+
+从库服务名：slave，端口3308
+
+安装并配置主库master
+下载
+首先是下载mysql，直接到官网下载zip版的安装包，这里建议下载比较新的版本，比如笔者的版本是5.7，这也是网上很多大神的建议，
+
+
+解压并创建my.ini文件
+解压安装包，命名文件夹为master，进入文件夹，创建一个名为my.ini的空文本，
+
+
+文本中的内容如下：
+[client]
+# 端口号，默认是3306，同一个环境下不同的mysql实例端口号不能相同
+port=3307
+default-character-set=utf8
+
+[mysqld]
+#主库配置
+server_id=1
+log_bin=master-bin
+log_bin-index=master-bin.index
+
+# 设置为自己MYSQL的安装目录
+basedir=D:/software/mysql/master
+# 设置为MYSQL的数据目录，data文件夹由mysql自动生成
+datadir=D:/software/mysql/master/data
+port=3307
+character_set_server=utf8
+sql_mode=NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER
+
+# 开启查询缓存
+explicit_defaults_for_timestamp=true
+复制代码
+ps：配置内容中的目录地址要用斜杠，不能用反斜杠，否则等下安装服务会报错找不到目录。
+
+安装master库的服务
+1、cmd管理员身份运行，进入master的bin目录下，
+
+
+2、执行初始化的命令：
+mysqld --initialize --user=mysql --console
+复制代码
+如果出现类似下面的提升就显示初始化成功，初始化成功会系统自动生成data文件夹，并生成初始密码，
+
+
+3、初始化完成后，执行安装服务的命令：
+mysqld --install master --defaults-file="D:\software\mysql\master\my.ini"
+复制代码
+master为服务的名称，--defaults-file为ini文件的路径，出现"Service successfully installed."即为成功
+
+
+注：如果安装失败的话，看看是否没有管理员身份运行cmd。
+正常来说，安装完master的服务后我们就可以启动mysql了，然而这里有个坑，就是直接mysql后会报错，因为我们还少配置了一个地方，就是注册表中master服务的信息。
+
+
+所以在未修改注册表之前，建议先别执行启动命令。
+4、修改注册表
+
+按win+R，在弹框中输入regedit打开注册表，找到master服务，路径是HKEY_LOCAL_MACHINE–>SYSTEM–>CurrentControlSet–>Services–>master，修改ImagePath为
+
+D:\software\mysql\master\bin\mysqld --defaults-file=D:\software\mysql\master\my.ini master
+复制代码
+路径就对应自己安装的master数据库文件夹即可。
+
+5、启动服务
+
+依然是在bin目录下执行启动服务，命令是net master start，启动成功后会出现如下的提示：
+
+
+6、进入mysql
+进入mysql的命令是：mysql -u root -p ，但因为我们改了端口号，所以命令要改为
+
+mysql -u root -P3307 -p，然后输入刚才生成的初始化密码即可进入mysql，
+
+
+由于这个初始密码实在是太蛋疼，所以我们最好更改密码，更改语句为：
+set password=password('新密码');
+复制代码
+例如LZ设置的密码为123456，
+
+
+这样就成功设置了root用户的密码了，然后我们可以用Navicat等图形化工具来操作连接数据库了，
+
+安装从库slave
+从库的安装步骤和主库一样，只是my.ini中修改对应的配置即可。
+
+[client]
+port=3308
+default-character-set=utf8
+
+[mysqld]
+#从库配置
+server_id=2
+relay-log-index=slave-relay-bin.index
+relay-log=slave-relay-bin
+
+# 设置为自己MYSQL的安装目录
+basedir=D:/software/mysql/slave
+# 设置为MYSQL的数据目录
+datadir=D:/software/mysql/slave/data
+port=3308
+character_set_server=utf8
+sql_mode=NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER
+#开启查询缓存
+explicit_defaults_for_timestamp=true
+复制代码
+主从库实现关联
+两个库都安装好了，我们就可以来操作主从库之间的关联，实现主从之间的复制，
+
+先登录主库，输入 show master status;
+
+
+可以发现主库中生成了一个二进制的文件，这是一个日志文件，从库关联它就可以实现和主库的同步了。
+登录从库，执行下面的命令，
+
+change master to master_host='127.0.0.1',master_port=3307,master_user='root',master_password='123456',master_log_file='master-bin.000001',master_log_pos=0;
+复制代码
+不难看出上面都是主库的配置信息，成功后执行命令start slave 开启主从复制
+
+
+完成之后，我们简单验证下，在master库中创建一个数据库，名字就叫test，
+
+然后slave中也生成了同样的数据库test，
+
+这样，主从复制就成功实现了。
+值得说明的是，因为两个库只是做了单向关联，如果往从库中写数据的话，主库是无法同步的。所以从库只能用于读取数据，而主库既能写，也能读，当然，多数情况都是用于写数据，读取数据一般都是从库获取，这样能有效减轻主库的压力，也就是我们常说的读写分离。
+
+如果您觉得阅读本文对您有帮助，还请您帮忙点个赞，这是对我最好的肯定！

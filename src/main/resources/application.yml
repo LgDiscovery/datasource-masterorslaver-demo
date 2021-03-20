@@ -1,0 +1,16 @@
+server:
+  \u00A0\u00A0port:\u00A08001
+spring:
+\u00A0\u00A0datasource:
+  \u00A0\u00A0\u00A0\u00A0type:\u00A0com.alibaba.druid.pool.DruidDataSource
+  \u00A0\u00A0\u00A0\u00A0driver-class-name:\u00A0com.mysql.cj.jdbc.Driver
+\u00A0\u00A0\u00A0\u00A0master:
+\u00A0\u00A0\u00A0\u00A0\u00A0  url:  jdbc:mysql://127.0.0.1:3307/user?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&useSSL=false&zeroDateTimeBehavior=convertToNull&allowMultiQueries=true
+  \u00A0\u00A0\u00A0\u00A0  username:  root
+\u00A0\u00A0\u00A0\u00A0\u00A0  password:
+\u00A0\u00A0\u00A0\u00A0slave:
+\u00A0\u00A0\u00A0\u00A0\u00A0 url:  jdbc:mysql://127.0.0.1:3308/user?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&failOverReadOnly=false&useSSL=false&zeroDateTimeBehavior=convertToNull&allowMultiQueries=true
+\u00A0\u00A0\u00A0\u00A0\u00A0 username: root
+            password:
+
+
